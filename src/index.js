@@ -4,7 +4,6 @@
  * Released under the MIT License.
  */
 
-import { v4 as uuidv4 } from 'uuid' // 用户 id 生成
 import xss from 'xss'
 import {
   getCheerio,
@@ -45,6 +44,51 @@ import logger from 'twikoo-func/utils/logger'
 // 常量 / constants
 import constants from 'twikoo-func/utils/constants'
 
+// aliyun push 公共参数函数
+import { Buffer } from "node:buffer"
+
+const encoder = new TextEncoder()
+const fixedEncodeURIComponent = (str) => {
+  return encodeURIComponent(str).replace(/[!'()*]/g, (c) => {
+      return "%" + c.charCodeAt(0).toString(16).toUpperCase()
+  })
+}
+const realFetch = async (secret, params) => {
+  let canonicalizedQueryString = ''
+  let index = 0
+  for (const [key, value] of params) {
+      if (index > 0) canonicalizedQueryString += '&'
+      canonicalizedQueryString += `${fixedEncodeURIComponent(key)}=${fixedEncodeURIComponent(value)}`
+      index ++
+  }
+  const signed_string = `POST&${fixedEncodeURIComponent("/")}&${fixedEncodeURIComponent(canonicalizedQueryString)}`
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret+'&'),
+    { name: "HMAC", hash: "SHA-1" },
+    true,
+    ["sign", "verify"]
+  )
+  const mac = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(signed_string)
+  )
+  let queryString = `Signature=${encodeURIComponent(Buffer.from(mac).toString("base64"))}`
+  for (const [key, value] of params) {
+      queryString += `&${key}=${encodeURIComponent(value)}`
+  }
+  //console.log('queryString', queryString)
+  return fetch('https://dm.aliyuncs.com/', {
+    method: 'POST',
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: queryString
+  })
+  //.then((response) => response.json()).then((data) => console.log(data));
+}
+
 // 注入Cloudflare特定的依赖（原依赖于Cloudflare不兼容）
 setCustomLibs({
   DOMPurify: {
@@ -62,19 +106,26 @@ setCustomLibs({
 
         sendMail ({ from, to, subject, html }) {
           if (!config.SMTP_PASS) return "未配置SMTP_PASS，跳过邮件通知。"
-          return fetch('https://api.sendgrid.com/v3/mail/send', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${config.SMTP_PASS}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              personalizations: [{ to: [{ email: to }] }],
-              from: { email: from },
-              subject,
-              content: [{ type: 'text/html', value: html }],
-            })
-          })
+          const unsignedParams = new Map([
+            ['AccessKeyId', config.SMTP_USER],
+            ['AccountName', config.SENDER_EMAIL],
+            ['Action', 'SingleSendMail'],
+            ['AddressType', '1'],
+            ['Format', 'json'],
+            ['FromAlias', config.SENDER_NAME],
+            ['HtmlBody', html],
+            ['RegionId', 'cn-hangzhou'],
+            ['ReplyToAddress', 'false'],
+            ['SignatureMethod', 'HMAC-SHA1'],
+            ['SignatureNonce', crypto.randomUUID()],
+            ['SignatureVersion', '1.0'],
+            ['Subject', subject],
+            ['TagName', 'blog'],
+            ['Timestamp', new Date().toISOString().slice(0,-5)+"Z"],
+            ['ToAddress', to],
+            ['Version', '2015-11-23'],
+          ])
+          return realFetch(config.SMTP_PASS, unsignedParams)
         }
       }
     }
@@ -447,7 +498,7 @@ function anonymousSignIn (event) {
   if (event.accessToken) {
     return event.accessToken
   } else {
-    return uuidv4().replace(/-/g, '')
+    return crypto.randomUUID().replace(/-/g, '')
   }
 }
 
@@ -781,7 +832,7 @@ async function commentSubmit (event, request) {
 
 // 保存评论
 async function save (data) {
-  data.id = data._id = uuidv4().replace(/-/g, '')
+  data.id = data._id = crypto.randomUUID().replace(/-/g, '')
   await db.saveCommentStmt.bind(
     data._id, data.uid, data.nick ?? '', data.mail ?? '', data.mailMd5 ?? '',
     data.link ?? '', data.ua ?? '', data.ip ?? '', data.master ?? 0,
@@ -813,7 +864,7 @@ async function parse (comment, request) {
   const isBloggerMail = equalsMail(comment.mail, config.BLOGGER_EMAIL)
   if (isBloggerMail && !isAdminUser) throw new Error('请先登录管理面板，再使用博主身份发送评论')
   const commentDo = {
-    _id: uuidv4().replace(/-/g, ''),
+    _id: crypto.randomUUID().replace(/-/g, ''),
     uid: getUid(),
     nick: comment.nick ? comment.nick : '匿名',
     mail: comment.mail ? comment.mail : '',
