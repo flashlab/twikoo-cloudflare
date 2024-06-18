@@ -834,7 +834,7 @@ async function commentSubmit (event, request) {
 async function save (data) {
   data.id = data._id = crypto.randomUUID().replace(/-/g, '')
   await db.saveCommentStmt.bind(
-    data._id, data.uid, data.nick ?? '', data.mail ?? '', data.mailMd5 ?? '',
+    data._id, data.uid ?? '', data.nick ?? '', data.mail ?? '', data.mailMd5 ?? '',
     data.link ?? '', data.ua ?? '', data.ip ?? '', data.master ?? 0,
     data.url, data.href, data.comment, data.pid ?? '', data.rid ?? '',
     data.isSpam ?? 0, data.created, data.updated,
