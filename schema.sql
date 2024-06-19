@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS comment (
   like TEXT NOT NULL,
   top INTEGER NOT NULL,
   avatar TEXT NOT NULL,
+  ipRegion TEXT NOT NULL,
   PRIMARY KEY (url, created DESC)
 );
 

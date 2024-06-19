@@ -872,6 +872,7 @@ async function parse (comment, request) {
     link: comment.link ? comment.link : '',
     ua: comment.ua,
     ip: getIp(request),
+    ipRegion: getIpRegion(request),
     master: isBloggerMail,
     url: comment.url,
     href: comment.href,
@@ -1065,4 +1066,8 @@ function isAdmin () {
 
 function getIp (request) {
   return request.headers.get('CF-Connecting-IP')
+}
+
+function getIpRegion (request) {
+  return `${request.cf.country ?? ''}|${request.cf.region ?? ''}|${request.cf.city ?? ''}|${request.cf.colo ?? ''}`
 }
