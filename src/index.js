@@ -267,7 +267,7 @@ WHERE _id = ?
       this.DB.prepare(`
 INSERT INTO comment VALUES (
   ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
-  ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20
+  ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21
 )
 `.trim()))
   }
@@ -838,7 +838,7 @@ async function save (data) {
     data.link ?? '', data.ua ?? '', data.ip ?? '', data.master ?? 0,
     data.url, data.href, data.comment, data.pid ?? '', data.rid ?? '',
     data.isSpam ?? 0, data.created, data.updated,
-    JSON.stringify(data.like ?? []), data.top ?? 0, data.avatar ?? ''
+    JSON.stringify(data.like ?? []), data.top ?? 0, data.avatar ?? '', data.ipRegion ?? ''
   ).run()
   return data
 }

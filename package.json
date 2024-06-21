@@ -16,7 +16,7 @@
     "wrangler": "^3.55.0"
   },
   "dependencies": {
-    "@flashlab/twikoo-func": "^1.6.37",
+    "twikoo-func": "npm:@flashlab/twikoo-func@^1.6.37",
     "url": "^0.11.3",
     "xss": "^1.0.15"
   }
